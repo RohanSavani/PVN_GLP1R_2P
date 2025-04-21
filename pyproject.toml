@@ -1,0 +1,20 @@
+[project]
+name = "my_analysis_project"
+version = "0.1.0"
+description = "A well-structured data analysis project"
+authors = [{ name = "Your Name" }]
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "pandas",
+    "statsmodels",
+    "scikit-image",
+    "ipykernel",       # For Jupyter compatibility
+    "jupyterlab"       # Optional: full JupyterLab
+]
+
+[tool.uv]
+# Optional: later you can lock deps with `uv pip compile`
+
