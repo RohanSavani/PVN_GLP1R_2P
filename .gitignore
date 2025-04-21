@@ -6,4 +6,6 @@ __pycache__/
 .DS_Store
 .env
 *.log
-
+data/*
+results/*
+figures/*
