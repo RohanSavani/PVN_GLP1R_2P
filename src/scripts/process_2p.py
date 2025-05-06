@@ -163,6 +163,22 @@ def align_2p_to_cues(filt_f, cue_frame = 105, pre_time = 75, post_time = 150):
     return aligned_data
 
 
+def get_baseline_filt_f(f, baseline_start_frame = 30, baseline_end_frame = 105):
+    """
+    Get the baseline fluorescence array for each cell.
+    """
+    return f[:, :, baseline_start_frame:baseline_end_frame]
+
+
+def average_trials(f):
+    """
+    Average across trials for each cell
+    """
+    if f.ndim != 3:
+        raise ValueError("Input array must be 3D (cells x trials x time)")
+    return np.nanmean(f, axis=1)
+
+
 def moving_average(data, window_size = 5):
     """
     Computes the moving average of the data.
