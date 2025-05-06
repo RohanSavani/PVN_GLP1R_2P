@@ -5,16 +5,16 @@ from scipy.ndimage import uniform_filter1d
 
 def load_s2p_data(path_to_suite2p_folder):
     """
-    Load 2p data from the specified path.
+    Load 2p data from the specified path. Fneu not loaded as it is now. 
     """
     # Load the data
     f = np.load(os.path.join(path_to_suite2p_folder, 'F.npy'))
-    fn = np.load(os.path.join(path_to_suite2p_folder, "Fneu.npy"))
+    # fn = np.load(os.path.join(path_to_suite2p_folder, "Fneu.npy"))
     iscell=np.load(os.path.join(path_to_suite2p_folder,"iscell.npy"))
     ops=np.load(os.path.join(path_to_suite2p_folder,"ops.npy"), allow_pickle=True)
 
 
-    return f, fn, iscell, ops
+    return f, iscell, ops
 
 
 def filter_cells(F, iscell, filter_by='first'):
@@ -38,7 +38,7 @@ def filter_cells(F, iscell, filter_by='first'):
     return F[mask]
 
 
-def rearrange_data(F, n_trials = 30, framespertrial = 375, fps = 15):
+def reshape_data(F, n_trials = 30, framespertrial = 375, fps = 15):
     """
     Rearranges the fluorescence data into a 3D array.
     
