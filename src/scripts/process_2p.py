@@ -71,7 +71,7 @@ def normalize_data(F, use_baseline = True, baseline_period = [0, 105], trial_by_
     Returns:
         np.ndarray: Normalized fluorescence data.
     """
-    n_cells, n_trials, framespertrial = F.shape
+    n_cells, n_trials, frames = F.shape
     F_normalized = np.zeros_like(F)
 
     if trial_by_trial:
@@ -83,8 +83,84 @@ def normalize_data(F, use_baseline = True, baseline_period = [0, 105], trial_by_
                     baseline = np.mean(F[i, j, :])
             
                 F_normalized[i, j, :] = (F[i, j, :]) / baseline
+    else:
+        for i in range(n_cells):
+            if use_baseline:
+                baseline = np.mean(F[i, :, baseline_period[0]:baseline_period[1]])
+            else:
+                baseline = np.mean(F[i, :, :])
+            
+            F_normalized[i, :, :] = (F[i, :, :]) / baseline
         
     return F_normalized 
+
+
+def align_2p_to_licks(filt_f, bout_start_frame, pre_time = 75, post_time = 150, reward_frame = 150):
+    """
+    Aligns 2p data to lick bout start frames.
+    
+    Parameters
+    ----------
+    filt_f : array
+        Filtered 2p data.
+    bout_start_frame : array
+        Lick bout start frames.
+    pre_time : int
+        Number of frames before the lick bout to include.
+    post_time : int
+        Number of frames after the lick bout to include.
+    reward_frame : int
+        Frame number of reward delivery.
+        
+    Returns
+    -------
+    aligned_data : array
+        Aligned 2p data.
+    """
+    if len(bout_start_frame) != filt_f.shape[1]:
+        raise ValueError("Number of bout start frames does not match number of trials in 2p data.")
+    if np.any(bout_start_frame < reward_frame) and np.any(bout_start_frame >= reward_frame):
+        raise ValueError("Inconsistent bout_start_frame values: some are before and some are after reward_frame.")
+
+    
+    aligned_data = np.zeros((filt_f.shape[0], len(bout_start_frame), pre_time + post_time))
+
+    if all(bout_start_frame < reward_frame):
+        bout_start_frame = bout_start_frame + reward_frame
+
+    for i, start_frame in enumerate(bout_start_frame):
+        aligned_data[:, i, :] = filt_f[:, i, start_frame - pre_time:start_frame + post_time]
+
+    return aligned_data
+
+
+def align_2p_to_cues(filt_f, cue_frame = 105, pre_time = 75, post_time = 150):
+    """
+    Aligns 2P data to cue frames.
+    
+    Parameters
+    ----------
+    filt_f : array
+        Filtered 2P data.
+    cue_frame : int
+        Frame number of the cue.
+    pre_time : int
+        Time before the cue to include in the aligned data.
+    post_time : int
+        Time after the cue to include in the aligned data.
+
+    Returns
+    -------
+    aligned_data : array
+        Aligned 2P data.
+    """
+    num_trials = filt_f.shape[1]
+    aligned_data = np.zeros((filt_f.shape[0], num_trials, pre_time + post_time))
+    
+    for i in range(num_trials):
+        aligned_data[:, i, :] = filt_f[:, i, cue_frame - pre_time:cue_frame + post_time]
+    
+    return aligned_data
 
 
 def moving_average(data, window_size = 5):
