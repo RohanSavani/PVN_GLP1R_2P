@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from scipy.ndimage import uniform_filter1d
+import lick_behav_analysis as behav
 
 
 def load_s2p_data(path_to_suite2p_folder):
@@ -191,3 +192,67 @@ def moving_average(data, window_size = 5):
         np.ndarray: Moving average of the data.
     """
     return uniform_filter1d(data, size=window_size)
+
+
+def process_2p_folder(folder, multiple_tastants = False, fps = 15, align = 'lick', success = 'success'):
+    """
+    Process 2p data for a given folder.
+
+    Parameters:
+    - folder: str, path to the folder containing the data
+    - multiple_tastants: bool, whether to process multiple tastants
+    - fps: int, frames per second
+    - align: str, alignment type ('lick' or 'cue')
+    - success: bool, whether to include only successful trials or only unsuccessful trials
+    
+    Returns:
+    - None
+    """
+    # TODO: add multiple tastants option
+    
+    all_avg_f = []
+    all_baseline_data = []
+    all_aligned_f = []
+
+    for path in [f for f in os.listdir(folder) if not f.startswith('.')]:
+        matpath = os.path.join(folder, path, 'suite2p', 'plane0', 'behaviordata.mat')
+        cyto_suite = os.path.join(folder, path, 'suite2p', 'plane0')
+
+        # Load data
+        f, iscell, ops = load_s2p_data(cyto_suite)
+        filt_f = filter_cells(f, iscell)
+        filt_f_reshaped = reshape_data(filt_f)
+        filt_f_norm = normalize_data(filt_f_reshaped)
+
+        # Process behavior data
+        bout_start, bout_end, bout_start_frames, bout_end_frames = behav.og_lickprocessing(matpath)
+        if success == 'success':
+            successful_trial_idx = [i for i, x in enumerate(bout_start) if (x > 0) & (x < 5000)]
+        elif success == 'unsuccess':
+            successful_trial_idx = [i for i, x in enumerate(bout_start) if not (x > 0) & (x < 5000)]
+        elif success == 'all':
+            successful_trial_idx = [i for i, _ in enumerate(bout_start)]
+        successful_bout_start_frames = bout_start_frames[successful_trial_idx]
+
+        # Combine lick data with imaging data
+        successful_filt_f = filt_f_norm[:, successful_trial_idx, :]
+        if align == 'lick':
+            filt_f_aligned = align_2p_to_licks(successful_filt_f, successful_bout_start_frames)
+        elif align == 'cue':
+            filt_f_aligned = align_2p_to_cues(successful_filt_f)
+
+        # Get baseline data
+        baseline_data = get_baseline_filt_f(successful_filt_f)
+
+        # Average across trials
+        avg_f = average_trials(filt_f_aligned)
+
+        # Store data 
+        all_avg_f.append(avg_f)
+        all_baseline_data.append(baseline_data)
+        all_aligned_f.append(filt_f_aligned)
+    
+    # Concatenate avg data (no trials axis )
+    all_avg_f = np.concatenate(all_avg_f, axis=0)
+
+    return all_avg_f, all_baseline_data, all_aligned_f
