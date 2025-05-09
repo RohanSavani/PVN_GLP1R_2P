@@ -82,7 +82,7 @@ def normalize_data(F, use_baseline = True, baseline_period = [0, 105], trial_by_
                     baseline = np.mean(F[i, j, baseline_period[0]:baseline_period[1]])
                 else:
                     baseline = np.mean(F[i, j, :])
-            
+                    
                 F_normalized[i, j, :] = (F[i, j, :]) / baseline
     else:
         for i in range(n_cells):

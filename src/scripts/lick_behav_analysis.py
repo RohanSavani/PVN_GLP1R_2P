@@ -5,7 +5,7 @@ import scipy.io as sio
 from matplotlib.patches import Rectangle
 from scipy.ndimage import gaussian_filter1d
 
-def og_lickprocessing(matfile, fps = 15, return_more = False, bout_limit = 5000, filter_pre_rew=True, filter_pre_licknum = 5): 
+def og_lickprocessing(matfile, fps = 15, return_more = False, bout_limit = 5000, filter_pre_rew=True, filter_pre_licknum = 20): 
     """
     Function to process lick data from a .mat file. It calculates bout start, end, length, and lick rate for each trial.
     Args:
