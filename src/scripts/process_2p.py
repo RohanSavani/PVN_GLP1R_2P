@@ -212,6 +212,7 @@ def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success'):
     all_avg_f = []
     all_baseline_data = []
     all_aligned_f = []
+    all_successful_f = []
 
     for path in [f for f in os.listdir(folder) if not f.startswith('.')]:
         matpath = os.path.join(folder, path, 'suite2p', 'plane0', 'behaviordata.mat')
@@ -250,11 +251,12 @@ def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success'):
         all_avg_f.append(avg_f)
         all_baseline_data.append(baseline_data)
         all_aligned_f.append(filt_f_aligned)
+        all_successful_f.append(successful_filt_f)
     
     # Concatenate avg data (no trials axis )
     all_avg_f = np.concatenate(all_avg_f, axis=0)
 
-    return all_avg_f, all_baseline_data, all_aligned_f
+    return all_avg_f, all_baseline_data, all_aligned_f, all_successful_f
 
 
 def process_2p_folder_mt(folder, n_trials, fps = 15, align = 'lick', success = 'success'):

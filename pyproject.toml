@@ -11,8 +11,8 @@ dependencies = [
     "pandas",
     "statsmodels",
     "scikit-image",
-    "ipykernel",       # For Jupyter compatibility
-    "jupyterlab"       # Optional: full JupyterLab
+    "ipykernel", # For Jupyter compatibility # Optional: full JupyterLab
+    "jupyterlab",
 ]
 
 [tool.uv]
