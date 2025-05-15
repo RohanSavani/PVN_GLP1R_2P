@@ -280,6 +280,8 @@ def process_2p_folder_mt(folder, n_trials, fps = 15, align = 'lick', success = '
     all_baseline_data_alt = []
     all_aligned_f_suc = []
     all_aligned_f_alt = []
+    all_successful_f_suc = []
+    all_successful_f_alt = []
 
     for path in [f for f in os.listdir(folder) if not f.startswith('.')]:
         matpath = os.path.join(folder, path, 'suite2p', 'plane0', 'behaviordata.mat')
@@ -342,10 +344,12 @@ def process_2p_folder_mt(folder, n_trials, fps = 15, align = 'lick', success = '
         all_baseline_data_alt.append(baseline_data_alt)
         all_aligned_f_suc.append(filt_f_aligned_suc)
         all_aligned_f_alt.append(filt_f_aligned_alt)
+        all_successful_f_suc.append(successful_filt_f_suc)
+        all_successful_f_alt.append(successful_filt_f_alt)
     
     # Concatenate avg data (no trials axis )
     all_avg_f_suc = np.concatenate(all_avg_f_suc, axis=0)
     all_avg_f_alt = np.concatenate(all_avg_f_alt, axis=0)
 
 
-    return all_avg_f_suc, all_avg_f_alt, all_baseline_data_suc, all_baseline_data_alt, all_aligned_f_suc, all_aligned_f_alt
+    return all_avg_f_suc, all_avg_f_alt, all_baseline_data_suc, all_baseline_data_alt, all_aligned_f_suc, all_aligned_f_alt, all_successful_f_suc, all_successful_f_alt
