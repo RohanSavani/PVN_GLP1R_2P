@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -233,7 +235,7 @@ def match_suite2p_files():
     
     # loop through new sessions
     for _ in range(n_files):
-        matplotlib.use('TkAgg')
+        # matplotlib.use('TkAgg')
         Next_path      = input("Next suite2p file to analyze: ").strip()
         session_name   = input("Name for this session: ").strip()
         
@@ -324,5 +326,15 @@ def match_suite2p_files():
 
 
 if __name__ == '__main__':
+    matplotlib.use('Qt5Agg')
     df = match_suite2p_files()
 
+'''
+/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp4_fasted_nocues_L180_p815_650um031124-003/suite2p/plane0
+/Users/savani/Downloads/2p_data/fed 30 sucrose/glp4_FedNoCues_L180_P815_650um-_03052024-1355-066/suite2p/plane0
+
+'/suite2p/plane0'
+
+/Users/savani/Downloads/2p_data/roi files
+
+'''

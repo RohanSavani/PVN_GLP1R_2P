@@ -13,6 +13,8 @@ dependencies = [
     "scikit-image",
     "ipykernel", # For Jupyter compatibility # Optional: full JupyterLab
     "jupyterlab",
+    "ipympl>=0.9.7",
+    "pyqt5>=5.15.11",
 ]
 
 [tool.uv]
