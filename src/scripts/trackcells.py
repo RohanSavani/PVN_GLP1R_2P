@@ -228,10 +228,14 @@ def match_suite2p_files():
     else:
         First_path     = input("Baseline suite2p file to analyze: ").strip()
         BL_name        = input("Name for baseline session: ").strip()
-        n_files        = int(input("How many files to analyze? ").strip())
-        rois_on        = input("Show ROI numbers on plots? (True/False): ").strip() == 'True'
-        exclusion_thr  = float(input("ROI inclusion threshold: ").strip())
-        save_directory = input("Directory to save final match CSV: ").strip()
+        # n_files        = int(input("How many more files to analyze? ").strip())
+        n_files = 1
+        # rois_on        = input("Show ROI numbers on plots? (True/False): ").strip() == 'True'
+        rois_on = False
+        # exclusion_thr  = float(input("ROI inclusion threshold: ").strip())
+        exclusion_thr = 0.1
+        # save_directory = input("Directory to save final match CSV: ").strip()
+        save_directory = '/Users/savani/Downloads/2p_data/roi files'
     
     # loop through new sessions
     for _ in range(n_files):
@@ -297,7 +301,7 @@ def match_suite2p_files():
             ax.set_title(f"Baseline ROI {c1}")
             yps = stat1[c1]['ypix']; xps = stat1[c1]['xpix']
             ax.imshow(ops1['meanImg'][min(yps)-10:max(yps)+10, min(xps)-10:max(xps)+10], cmap='gray')
-            xc, yc = tc.adjusted_med_coordinates(xps,yps,stat1[c1]['med'])
+            xc, yc = adjusted_med_coordinates(xps,yps,stat1[c1]['med'])
             ax.annotate(str(c1), xy=(xc,yc))
             # current ROI
             ax2 = plt.subplot2grid((len(valid_pairs),2),(i,1))
@@ -330,11 +334,23 @@ if __name__ == '__main__':
     df = match_suite2p_files()
 
 '''
-/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp4_fasted_nocues_L180_p815_650um031124-003/suite2p/plane0
+GLP4
 /Users/savani/Downloads/2p_data/fed 30 sucrose/glp4_FedNoCues_L180_P815_650um-_03052024-1355-066/suite2p/plane0
+/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp4_fasted_nocues_L180_p815_650um031124-003/suite2p/plane0
 
-'/suite2p/plane0'
+GLP6
+/Users/savani/Downloads/2p_data/fed 30 sucrose/glp6_FedNoCues_L180P815_600um-03062024-1321-073/suite2p/plane0
+/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp6_FastedNoCues_L180_P815_600um-_-03092024-1421-084/suite2p/plane0
 
-/Users/savani/Downloads/2p_data/roi files
+GLP10
+/Users/savani/Downloads/2p_data/fed 30 sucrose/glp10_fed_30suc_L170P800_560um_040924-025/suite2p/plane0
+/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp10_fasted_30suc_L170P800_560um_040724-005/suite2p/plane0
 
+GLP17
+/Users/savani/Downloads/2p_data/fed 30 sucrose/glp17_fed30suc_L150P800_565um_0613-020/suite2p/plane0
+/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp17_fasted30suc_L150P800_565um-032/suite2p/plane0
+
+GLP23
+/Users/savani/Downloads/2p_data/fed 30 sucrose/glp23_fed_30suc_L155P800_575um-20250203-112/suite2p/plane0
+/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp23_fasted_30suc_L155P800_575um-20250205-113-selected/suite2p/plane0
 '''
