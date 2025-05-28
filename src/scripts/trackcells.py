@@ -184,7 +184,6 @@ def get_rois(path,rois_on):
     validCellList = np.where(cellValid==1)
     validCellList = np.squeeze(validCellList)
     validCellList = list(validCellList)
-    print(validCellList)
     #Create mask to be used to create the image - all ROIs including overlap
     #Overlap is included because otherwise contour drawing can get messed up.
     #This does not affect ROI detection as each ROI is only compared with those from other sessions.
@@ -192,7 +191,6 @@ def get_rois(path,rois_on):
     tmp = []
     # for iCell in range (0,len(validCellList)+1):
     for iCell in validCellList:
-        print(iCell)
         tmp = iCell;
         cellID=cellID+[tmp]
         for n in range(0,np.size(stat[iCell]['ypix'])):
