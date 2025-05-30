@@ -13,10 +13,7 @@ from skimage.feature import canny
 
 #Draw Image of all ROIs based on suite2p
 def draw_image(path,rois_on):
-    f=np.load(os.path.join(path,"F.npy"))
-    Fneu=np.load(os.path.join(path, "Fneu.npy"))
     iscell=np.load(os.path.join(path,"iscell.npy"))
-    spikes=np.load(os.path.join(path,"spks.npy"))
     stat=np.load(os.path.join(path,"stat.npy"),allow_pickle=True)
     ops=np.load(os.path.join(path,"ops.npy"),allow_pickle=True).item()
 
@@ -169,10 +166,7 @@ def adjusted_med_coordinates(stat_imgx,stat_imgy,statmed):
     return good_coords
 
 def get_rois(path,rois_on):
-    f = np.load(os.path.join(path,"F.npy"))
-    Fneu = np.load(os.path.join(path, "Fneu.npy"))
     iscell = np.load(os.path.join(path,"iscell.npy"))
-    spikes = np.load(os.path.join(path,"spks.npy"))
     stat = np.load(os.path.join(path,"stat.npy"),allow_pickle=True)
     ops = np.load(os.path.join(path,"ops.npy"),allow_pickle=True).item()
     
@@ -226,8 +220,8 @@ def match_suite2p_files():
     else:
         First_path     = input("Baseline suite2p file to analyze: ").strip()
         BL_name        = input("Name for baseline session: ").strip()
-        # n_files        = int(input("How many more files to analyze? ").strip())
-        n_files = 1
+        n_files        = int(input("How many more files to analyze? ").strip())
+        # n_files = 1
         # rois_on        = input("Show ROI numbers on plots? (True/False): ").strip() == 'True'
         rois_on = False
         # exclusion_thr  = float(input("ROI inclusion threshold: ").strip())
@@ -332,23 +326,18 @@ if __name__ == '__main__':
     df = match_suite2p_files()
 
 '''
-GLP4
-/Users/savani/Downloads/2p_data/fed 30 sucrose/glp4_FedNoCues_L180_P815_650um-_03052024-1355-066/suite2p/plane0
-/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp4_fasted_nocues_L180_p815_650um031124-003/suite2p/plane0
-
-GLP6
-/Users/savani/Downloads/2p_data/fed 30 sucrose/glp6_FedNoCues_L180P815_600um-03062024-1321-073/suite2p/plane0
-/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp6_FastedNoCues_L180_P815_600um-_-03092024-1421-084/suite2p/plane0
-
-GLP10
-/Users/savani/Downloads/2p_data/fed 30 sucrose/glp10_fed_30suc_L170P800_560um_040924-025/suite2p/plane0
-/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp10_fasted_30suc_L170P800_560um_040724-005/suite2p/plane0
-
+/Users/savani/Downloads/2p_data/roi files
 GLP17
-/Users/savani/Downloads/2p_data/fed 30 sucrose/glp17_fed30suc_L150P800_565um_0613-020/suite2p/plane0
-/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp17_fasted30suc_L150P800_565um-032/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp17_fed_d4/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp17_fasted_d1/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp17_fasted_d2/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp17_fasted_d3/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp17_fasted_d5/suite2p/plane0
 
 GLP23
-/Users/savani/Downloads/2p_data/fed 30 sucrose/glp23_fed_30suc_L155P800_575um-20250203-112/suite2p/plane0
-/Users/savani/Downloads/2p_data/fasted 30 sucrose/glp23_fasted_30suc_L155P800_575um-20250205-113-selected/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp23_fed_d3/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp23_fasted_d1/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp23_fasted_d2/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp23_fasted_d4/suite2p/plane0
+/Users/savani/Downloads/2p data temp/glp23_fasted_d5/suite2p/plane0
 '''
