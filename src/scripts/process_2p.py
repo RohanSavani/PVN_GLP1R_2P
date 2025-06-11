@@ -3,6 +3,7 @@ import numpy as np
 from scipy.ndimage import uniform_filter1d
 import lick_behav_analysis as behav
 import scipy.io as sio
+from scipy.integrate import simpson
 
 
 def load_s2p_data(path_to_suite2p_folder):
@@ -73,7 +74,10 @@ def normalize_data(F, use_baseline = True, baseline_period = [0, 105], trial_by_
     Returns:
         np.ndarray: Normalized fluorescence data.
     """
-    n_cells, n_trials, frames = F.shape
+    if trial_by_trial:
+        n_cells, n_trials, frames = F.shape
+    else:
+        n_cells, frames = F.shape
     F_normalized = np.zeros_like(F)
 
     if trial_by_trial:
@@ -90,9 +94,9 @@ def normalize_data(F, use_baseline = True, baseline_period = [0, 105], trial_by_
             if use_baseline:
                 baseline = np.mean(F[i, :, baseline_period[0]:baseline_period[1]])
             else:
-                baseline = np.mean(F[i, :, :])
+                baseline = np.mean(F[i, :])
             
-            F_normalized[i, :, :] = (F[i, :, :]) / baseline
+            F_normalized[i, :] = (F[i, :]) / baseline
         
     return F_normalized 
 
@@ -193,6 +197,26 @@ def moving_average(data, window_size = 5):
         np.ndarray: Moving average of the data.
     """
     return uniform_filter1d(data, size=window_size)
+
+def get_auc(data, start_frame, end_frame, normalize = 1, ms_per_frame = int(1000//15), dim = 2):
+    """
+    Computes the area under the curve (AUC) for the given data.
+    
+    Parameters:
+        data (np.ndarray): Data to compute the AUC on.
+        start_frame (int): Start frame for AUC calculation.
+        end_frame (int): End frame for AUC calculation.
+        normalize (bool): Whether to normalize the AUC.
+        ms_per_frame (int): Milliseconds per frame, default is 1000//15.
+        
+    Returns:
+        float: Area under the curve.
+    """
+    if dim == 2:
+        auc = simpson(data[:, start_frame:end_frame], dx=ms_per_frame)
+    elif dim == 3:
+        auc = simpson(data[:, :, start_frame:end_frame], dx=ms_per_frame, axis=2)
+    return auc / normalize
 
 
 def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success'):

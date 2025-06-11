@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as sio
-
+import pandas as pd
 from matplotlib.patches import Rectangle
 from scipy.ndimage import gaussian_filter1d
 
@@ -399,3 +399,75 @@ def plot_lick_raster_with_psth(
 
     plt.tight_layout()
     return fig, ax_raster, ax_psth
+
+
+def label_meals(epocs, min_pellets=5, meal_duration=600):
+    ipi = [(epocs[i+1]-epocs[i]) for i in range(len(epocs)-1)]
+    output = []
+    meal_no = 1 
+    c = 0 
+
+    while c < len(ipi):
+        pellets = ipi[c+1:c+min_pellets] #pellets = ipi[c+1:c+min_pellets]
+        if len(pellets) == 0 and c == len(ipi) - 1: #if last pellet
+            if ipi[c] >= meal_duration: 
+                print('appending None')
+                output.append(meal_no if min_pellets == 1 else None)
+            break
+        if all(p < meal_duration for p in pellets): 
+            output.append(meal_no)
+            while c < len(ipi) - 1: 
+                if ipi[c+1] < meal_duration: 
+                    output.append(meal_no)
+                    c += 1 
+                else: 
+                    c += 1 
+                    break
+            meal_no += 1 
+        else: 
+            output.append(None)
+            c += 1 
+    t = [1 if ((epocs[1]-epocs[0] < meal_duration) and (output[0] == 1)) else None]
+    t += output
+    output = t
+
+    if len(epocs) == len(output)+1:
+        output.append(None)
+        print('appending another final None')
+
+    if any(isinstance(item, int) for item in output[-min_pellets:]):
+        inspect = output[-min_pellets:]
+        if all(isinstance(item, int) for item in inspect):
+            if inspect.count(inspect[0]) == len(inspect): #if all values are the same in the arr
+                pass #constitutes a full meal 
+            else: #replace new meal_no's with Nones, since not enough pellets to constitute meal 
+                first_mealno = inspect[0] 
+                idxs = [idx for idx, val in enumerate(inspect) if val != first_mealno] 
+                replace_len = len(inspect[idxs[0]:])
+                inspect[idxs[0]:] = [None] * replace_len
+                output[-min_pellets:] = inspect 
+
+        else: #if None in last 5 indices, replace all to right of None with None 
+            idxs = [idx for idx, val in enumerate(inspect) if val == None] #get vals to the right of Nones 
+            replace_len = len(inspect[idxs[0]:])
+            inspect[idxs[0]:] = [None] * replace_len
+            output[-min_pellets:] = inspect 
+
+    
+    df = pd.DataFrame.from_dict({'meal_no': output, 'epoc_time':epocs}).dropna().reset_index()
+    meal_onsets = []
+    meal_offsets = []
+    arr = range(len(df.index))
+    for i in arr:
+        if i == 0:
+            meal_onsets.append(df['epoc_time'][i])
+        elif i != 0 and i != arr[-1]:
+            if df['meal_no'][i] != df['meal_no'][i-1]:
+                meal_onsets.append(df['epoc_time'][i])
+            if df['meal_no'][i] != df['meal_no'][i+1]:
+                meal_offsets.append(df['epoc_time'][i])
+        elif i == arr[-1]:
+            meal_offsets.append(df['epoc_time'][i])
+        
+    return meal_onsets, meal_offsets
+

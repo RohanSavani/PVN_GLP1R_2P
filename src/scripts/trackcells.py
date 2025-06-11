@@ -3,13 +3,166 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib import figure
 import pandas as pd
 import os
-from matplotlib.colors import ListedColormap
-import skimage
 import skimage.measure as measure
-from skimage.feature import canny
+import process_2p as p2p
+import lick_behav_analysis as behav
+
+
+def process_2p_folder_tracked(folder, roi_folder, roi_name, align = 'lick', success = 'success'):
+    """
+    Process 2p data for a given folder with tracked ROIs.
+
+    Parameters:
+    - folder: str, path to the folder containing the data
+    - fps: int, frames per second
+    - align: str, alignment type ('lick' or 'cue')
+    - success: bool, whether to include only successful trials or only unsuccessful trials
+    
+    Returns:
+    - None
+    """
+
+    all_avg_f = []
+    all_baseline_data = []
+    all_aligned_f = []
+    all_successful_f = []
+    roi_paths = [os.path.join(roi_folder, f) for f in os.listdir(roi_folder) if not f.startswith('.')]
+
+    for path in sorted([f for f in os.listdir(folder) if not f.startswith('.')]):
+        matpath = os.path.join(folder, path, 'suite2p', 'plane0', 'behaviordata.mat')
+        cyto_suite = os.path.join(folder, path, 'suite2p', 'plane0')
+
+        animal_no = path.rsplit("glp")[1].rsplit("_")[0]
+        roi = [x for x in roi_paths if f'glp{animal_no}_' in x]
+        if len(roi) != 1:
+            print(f"Warning: Found {len(roi)} ROIs for animal {animal_no}. Expected 1.")
+        roi_df = pd.read_csv(roi[0])
+        if roi_df.to_numpy().dtype is not np.dtype('int64'):
+            df = roi_df.dropna()
+        else:
+            df = roi_df
+            print("Did not filter ROI df")
+        for idx, val in enumerate(list(df.columns)):
+            if roi_name in df.columns[idx]:
+                col = list(df[df.columns[idx]])
+        if roi_name in path:
+            track_idx = [int(temp) for temp in col]
+
+        print(path)
+        print(track_idx)
+        # Load data
+        f, iscell, ops = p2p.load_s2p_data(cyto_suite)
+
+        # Filter to include only tracked cells here (not using p2p.filter_cells)
+        filt_f = f[track_idx, :]
+        # filt_f = p2p.filter_cells(f, iscell)
+        filt_f_reshaped = p2p.reshape_data(filt_f)
+        filt_f_norm = p2p.normalize_data(filt_f_reshaped)
+
+        # Process behavior data
+        bout_start, bout_end, bout_start_frames, bout_end_frames = behav.og_lickprocessing(matpath)
+        if success == 'success':
+            successful_trial_idx = [i for i, x in enumerate(bout_start) if (x > 0) & (x < 5000)]
+        elif success == 'unsuccess':
+            successful_trial_idx = [i for i, x in enumerate(bout_start) if not (x > 0) & (x < 5000)]
+        elif success == 'all':
+            successful_trial_idx = [i for i, _ in enumerate(bout_start)]
+        successful_bout_start_frames = bout_start_frames[successful_trial_idx]
+
+        # Combine lick data with imaging data
+        successful_filt_f = filt_f_norm[:, successful_trial_idx, :]
+        if align == 'lick':
+            filt_f_aligned = p2p.align_2p_to_licks(successful_filt_f, successful_bout_start_frames)
+        elif align == 'cue':
+            filt_f_aligned = p2p.align_2p_to_cues(successful_filt_f)
+
+        # Get baseline data
+        baseline_data = p2p.get_baseline_filt_f(successful_filt_f)
+
+        # Average across trials
+        avg_f = p2p.average_trials(filt_f_aligned)
+
+        # Store data 
+        all_avg_f.append(avg_f)
+        all_baseline_data.append(baseline_data)
+        all_aligned_f.append(filt_f_aligned)
+        all_successful_f.append(successful_filt_f)
+    
+    # Concatenate avg data (no trials axis )
+    all_avg_f = np.concatenate(all_avg_f, axis=0)
+
+    return all_avg_f, all_baseline_data, all_aligned_f, all_successful_f
+
+
+def process_2p_rec_tracked(path, roi_csv, roi_name, align = 'lick', success = 'success'):
+    """
+    Process 2p data for a given folder with tracked ROIs.
+
+    Parameters:
+    - folder: str, path to the folder containing the data
+    - fps: int, frames per second
+    - align: str, alignment type ('lick' or 'cue')
+    - success: bool, whether to include only successful trials or only unsuccessful trials
+    
+    Returns:
+    - None
+    """
+
+    matpath = os.path.join(path, 'suite2p', 'plane0', 'behaviordata.mat')
+    cyto_suite = os.path.join(path, 'suite2p', 'plane0')
+
+    animal_no = path.rsplit("glp")[1].rsplit("_")[0]
+    roi = roi_csv
+    roi_df = pd.read_csv(roi)
+    if roi_df.to_numpy().dtype is not np.dtype('int64'):
+        df = roi_df.dropna()
+    else:
+        df = roi_df
+        print("Did not filter ROI df")
+    for idx, val in enumerate(list(df.columns)):
+        if roi_name in df.columns[idx]:
+            col = list(df[df.columns[idx]])
+    if roi_name in path:
+        track_idx = [int(temp) for temp in col]
+
+    print(path)
+    print(track_idx)
+    # Load data
+    f, iscell, ops = p2p.load_s2p_data(cyto_suite)
+
+    # Filter to include only tracked cells here (not using p2p.filter_cells)
+    filt_f = f[track_idx, :]
+    # filt_f = p2p.filter_cells(f, iscell)
+    filt_f_reshaped = p2p.reshape_data(filt_f)
+    filt_f_norm = p2p.normalize_data(filt_f_reshaped)
+
+    # Process behavior data
+    bout_start, bout_end, bout_start_frames, bout_end_frames = behav.og_lickprocessing(matpath)
+    if success == 'success':
+        successful_trial_idx = [i for i, x in enumerate(bout_start) if (x > 0) & (x < 5000)]
+    elif success == 'unsuccess':
+        successful_trial_idx = [i for i, x in enumerate(bout_start) if not (x > 0) & (x < 5000)]
+    elif success == 'all':
+        successful_trial_idx = [i for i, _ in enumerate(bout_start)]
+    successful_bout_start_frames = bout_start_frames[successful_trial_idx]
+
+    # Combine lick data with imaging data
+    successful_filt_f = filt_f_norm[:, successful_trial_idx, :]
+    if align == 'lick':
+        filt_f_aligned = p2p.align_2p_to_licks(successful_filt_f, successful_bout_start_frames)
+    elif align == 'cue':
+        filt_f_aligned = p2p.align_2p_to_cues(successful_filt_f)
+
+    # Get baseline data
+    baseline_data = p2p.get_baseline_filt_f(successful_filt_f)
+
+    # Average across trials
+    avg_f = p2p.average_trials(filt_f_aligned)
+
+    return avg_f, baseline_data, filt_f_aligned, successful_filt_f
+
 
 #Draw Image of all ROIs based on suite2p
 def draw_image(path,rois_on):
