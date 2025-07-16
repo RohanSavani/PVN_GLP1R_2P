@@ -183,6 +183,7 @@ def plot_lick_raster_with_psth(
     filter_pre_licknum: int = 5, 
     artifact_thresh: float = 0.100,
     normalize_histo: bool = False,
+    lw = 1.0
 ):
     """
     Load your .mat file and plot a lick raster + PSTH, aligned to cue, reward, or first lick.
@@ -274,7 +275,7 @@ def plot_lick_raster_with_psth(
 
     # 5) raster
     for row, times in enumerate(aligned, start=1):
-        ax_raster.vlines(times, row-0.4, row+0.4, color='black')
+        ax_raster.vlines(times, row-0.4, row+0.4, color='black', lw = lw)
 
     # zero line (colored if multis)
     # if multiple_tastant and a=='cue':
@@ -287,9 +288,9 @@ def plot_lick_raster_with_psth(
         for row, trial_idx in enumerate(trial_map, start=1):
             color = 'green' if trial_idx in alt_idx else 'blue'
             ax_raster.vlines(0, row-0.4, row+0.4,
-                            linestyle='--', color=color)
+                            linestyle='--', color=color, lw = lw)
     else:
-        ax_raster.axvline(0, linestyle='--', color='blue')
+        ax_raster.axvline(0, linestyle='--', color='blue', lw = lw)
 
     ax_raster.set_ylabel(ylabel_raster)
     ax_raster.set_ylim(0.5, n_trials+0.5)
@@ -471,3 +472,193 @@ def label_meals(epocs, min_pellets=5, meal_duration=600):
         
     return meal_onsets, meal_offsets
 
+
+def plot_avg_lick_histo(
+    mat_files: list,   
+    align_to: str = 'reward',
+    pre_window: float = 5,
+    post_window: float = 10,
+    bin_size_psth: float = 0.01,
+    smooth_psth: bool = True,
+    psth_smoothing_sigma: float = 1.0,
+    xlabel: str = 'Time (s)',
+    ylabel_raster: str = 'Trial #',
+    ylabel_psth: str = 'Licks/sec',
+    fps: int = 15,
+    plot_bouts: bool = True,
+    multiple_tastant: bool = False,
+    filter_pre_licknum: int = 5, 
+    artifact_thresh: float = 0.100,
+    normalize_histo: bool = False,
+    lw = 1.0
+):
+    from scipy.io import loadmat
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy.ndimage import gaussian_filter1d
+    from matplotlib.patches import Rectangle
+
+    all_aligned = []
+    all_trials = 0
+    tastant_colors = []  # track 'alt' or 'suc' trial types
+    trial_origin = []
+    alt_trials = []
+    suc_trials = []
+
+    for f_idx, mat_file in enumerate(mat_files):
+        beh       = loadmat(mat_file)
+        lick_ts   = np.squeeze(beh['licks'])   / 1000.0
+        cues      = np.squeeze(beh['cues'])    / 1000.0
+        cues      = cues[cues > 0]
+        rwd_ts    = np.squeeze(beh['fxdpumps'])/ 1000.0
+
+        if multiple_tastant:
+            alt_ts = np.squeeze(beh['cuesminus']) / 1000.0
+            alt_idx, suc_idx = [], []
+            for idx, t in enumerate(cues):
+                (alt_idx if t in alt_ts else suc_idx).append(idx)
+
+        # alignment
+        a = align_to.lower()
+        if a == 'cue':
+            event_ts  = cues
+            trial_map = np.arange(len(cues))
+        elif a == 'reward':
+            event_ts  = rwd_ts
+            trial_map = np.arange(len(rwd_ts))
+        elif a in ('firstlick', 'lick'):
+            *_, firstlick_ms, _lat, _rate, _bl, _all = og_lickprocessing(mat_file, fps, return_more=True, filter_pre_licknum=filter_pre_licknum)
+            fl_s_all = firstlick_ms / 1000.0
+            valid    = ~np.isnan(fl_s_all)
+            event_ts = fl_s_all[valid]
+            trial_map = np.where(valid)[0]
+        else:
+            raise ValueError("align_to must be 'cue', 'reward', or 'firstlick'")
+
+        for row, t0 in enumerate(event_ts, start=0):
+            mask = (lick_ts >= t0 - pre_window) & (lick_ts <= t0 + post_window)
+            rwd_time = rwd_ts[ trial_map[row] ]
+            mask &= ~((lick_ts >= rwd_time) & (lick_ts < rwd_time + artifact_thresh))
+            rel = lick_ts[mask] - t0
+            all_aligned.append(rel)
+            trial_origin.append(f_idx)
+
+            # Save tastant identity per trial (for coloring and PSTH splitting)
+            if multiple_tastant:
+                true_idx = trial_map[row]
+                if true_idx in alt_idx:
+                    tastant_colors.append('green')
+                    alt_trials.append(rel)
+                else:
+                    tastant_colors.append('blue')
+                    suc_trials.append(rel)
+
+        all_trials += len(event_ts)
+
+        # 4) Figure setup
+    fig, (ax_raster, ax_psth) = plt.subplots(
+        2, 1,
+        sharex=True,
+        gridspec_kw={'height_ratios': [3, 1]},
+        figsize=(12, 8)
+    )
+    # 5) Raster plot
+    for row, times in enumerate(all_aligned, start=1):
+        if multiple_tastant:
+            color = tastant_colors[row - 1]
+            ax_raster.vlines(times, row - 0.4, row + 0.4, color=color, lw=lw)
+            ax_raster.vlines(0, row - 0.4, row + 0.4, linestyle='--', color=color, lw=lw)
+        else:
+            ax_raster.vlines(times, row - 0.4, row + 0.4, color='black', lw=lw)
+    if not multiple_tastant:
+        ax_raster.axvline(0, linestyle='--', color='blue', lw=lw)
+
+    ax_raster.set_ylabel(ylabel_raster)
+    ax_raster.set_ylim(0.5, all_trials + 0.5)
+    ax_raster.invert_yaxis()
+    ax_raster.spines['top'].set_visible(False)
+    ax_raster.spines['right'].set_visible(False)
+
+    # 6) PSTH
+    bins = np.arange(-pre_window, post_window + bin_size_psth, bin_size_psth)
+
+    if multiple_tastant:
+        all_alt = np.hstack(alt_trials) if alt_trials else np.array([])
+        all_suc = np.hstack(suc_trials) if suc_trials else np.array([])
+
+        cnt_alt, _ = np.histogram(all_alt, bins=bins)
+        cnt_suc, _ = np.histogram(all_suc, bins=bins)
+
+        if normalize_histo:
+            cnt_alt = cnt_alt.astype(float) / max(cnt_alt.max(), 1)
+            cnt_suc = cnt_suc.astype(float) / max(cnt_suc.max(), 1)
+        else:
+            cnt_alt = cnt_alt / (len(alt_trials) * bin_size_psth) if alt_trials else cnt_alt
+            cnt_suc = cnt_suc / (len(suc_trials) * bin_size_psth) if suc_trials else cnt_suc
+
+        if smooth_psth:
+            cnt_alt = gaussian_filter1d(cnt_alt, sigma=psth_smoothing_sigma)
+            cnt_suc = gaussian_filter1d(cnt_suc, sigma=psth_smoothing_sigma)
+        centers = bins[:-1] + bin_size_psth / 2
+
+        # Convert alt/suc trials into 2D binned arrays
+        def binned_array(trials, bins):
+            return np.array([
+                np.histogram(trial, bins=bins)[0] for trial in trials
+            ])
+
+        alt_mat = binned_array(alt_trials, bins)
+        suc_mat = binned_array(suc_trials, bins)
+
+        # Normalize to licks/sec
+        if not normalize_histo:
+            alt_mat = alt_mat / bin_size_psth
+            suc_mat = suc_mat / bin_size_psth
+
+        # Compute mean and SEM
+        alt_mean = alt_mat.mean(axis=0) if len(alt_mat) > 0 else np.zeros(len(bins) - 1)
+        alt_sem  = alt_mat.std(axis=0, ddof=1) / np.sqrt(len(alt_mat)) if len(alt_mat) > 1 else np.zeros(len(bins) - 1)
+
+        suc_mean = suc_mat.mean(axis=0) if len(suc_mat) > 0 else np.zeros(len(bins) - 1)
+        suc_sem  = suc_mat.std(axis=0, ddof=1) / np.sqrt(len(suc_mat)) if len(suc_mat) > 1 else np.zeros(len(bins) - 1)
+
+        # Optional smoothing
+        if smooth_psth:
+            alt_mean = gaussian_filter1d(alt_mean, sigma=psth_smoothing_sigma)
+            alt_sem  = gaussian_filter1d(alt_sem, sigma=psth_smoothing_sigma)
+            suc_mean = gaussian_filter1d(suc_mean, sigma=psth_smoothing_sigma)
+            suc_sem  = gaussian_filter1d(suc_sem, sigma=psth_smoothing_sigma)
+
+        # Plot mean ± SEM
+        ax_psth.plot(centers, alt_mean, color='#316dc1', lw=2, label='Alt tastant')
+        ax_psth.fill_between(centers, alt_mean - alt_sem, alt_mean + alt_sem,
+                            color='#316dc1', alpha=0.3)
+
+        ax_psth.plot(centers, suc_mean, color='#424141', lw=2, label='Sucrose')
+        ax_psth.fill_between(centers, suc_mean - suc_sem, suc_mean + suc_sem,
+                            color='#424141', alpha=0.2)
+
+        ax_psth.legend()
+
+    else:
+        all_sp = np.hstack(all_aligned)
+        cnts, _ = np.histogram(all_sp, bins=bins)
+        if normalize_histo:
+            vals = cnts.astype(float) / max(cnts.max(), 1)
+        else:
+            vals = cnts / (all_trials * bin_size_psth)
+        if smooth_psth:
+            vals = gaussian_filter1d(vals, sigma=psth_smoothing_sigma)
+        ax_psth.bar(bins[:-1], vals,
+                    width=bin_size_psth,
+                    align='edge',
+                    edgecolor='none',
+                    color='black')
+
+    ax_psth.set_ylabel(ylabel_psth)
+    ax_psth.set_xticks(np.arange(-pre_window, post_window + 1, 1.0))
+    ax_psth.set_xlabel(xlabel)
+    ax_raster.set_xlim(-pre_window, post_window)
+
+    plt.tight_layout()
+    return fig, ax_raster, ax_psth

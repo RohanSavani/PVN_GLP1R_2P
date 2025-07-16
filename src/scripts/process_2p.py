@@ -219,7 +219,29 @@ def get_auc(data, start_frame, end_frame, normalize = 1, ms_per_frame = int(1000
     return auc / normalize
 
 
-def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success'):
+def get_maxmin_f(data, start_frame, end_frame, dim = 2):
+    """
+    Computes the maximum and minimum fluorescence values in the specified range.
+    
+    Parameters:
+        data (np.ndarray): Data to compute the max and min on.
+        start_frame (int): Start frame for max/min calculation.
+        end_frame (int): End frame for max/min calculation.
+        dim (int): Dimension to compute max/min over, default is 2.
+        
+    Returns:
+        tuple: Maximum and minimum fluorescence values.
+    """
+    if dim == 2:
+        max_f = np.max(data[:, start_frame:end_frame], axis=1)
+        min_f = np.min(data[:, start_frame:end_frame], axis=1)
+    elif dim == 3:
+        max_f = np.max(data[:, :, start_frame:end_frame], axis=2)
+        min_f = np.min(data[:, :, start_frame:end_frame], axis=2)
+    return max_f, min_f
+
+
+def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success', curate_trialno = False):
     """
     Process 2p data for a given folder.
 
@@ -241,11 +263,19 @@ def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success'):
     for path in [f for f in os.listdir(folder) if not f.startswith('.')]:
         matpath = os.path.join(folder, path, 'suite2p', 'plane0', 'behaviordata.mat')
         cyto_suite = os.path.join(folder, path, 'suite2p', 'plane0')
-
+        if curate_trialno:
+            animal_no = int(path.rsplit('glp')[1].rsplit('_')[0])
+        
         # Load data
         f, iscell, ops = load_s2p_data(cyto_suite)
         filt_f = filter_cells(f, iscell)
-        filt_f_reshaped = reshape_data(filt_f)
+        if curate_trialno:
+            if animal_no in [4, 6]:
+                filt_f_reshaped = reshape_data(filt_f, n_trials = 20)
+            else: 
+                filt_f_reshaped = reshape_data(filt_f)
+        else:
+            filt_f_reshaped = reshape_data(filt_f)
         filt_f_norm = normalize_data(filt_f_reshaped)
 
         # Process behavior data
