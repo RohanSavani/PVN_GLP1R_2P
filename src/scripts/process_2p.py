@@ -241,7 +241,7 @@ def get_maxmin_f(data, start_frame, end_frame, dim = 2):
     return max_f, min_f
 
 
-def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success', curate_trialno = False):
+def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success', curate_trialno = False, cue_frame = 105):
     """
     Process 2p data for a given folder.
 
@@ -293,7 +293,7 @@ def process_2p_folder(folder, fps = 15, align = 'lick', success = 'success', cur
         if align == 'lick':
             filt_f_aligned = align_2p_to_licks(successful_filt_f, successful_bout_start_frames)
         elif align == 'cue':
-            filt_f_aligned = align_2p_to_cues(successful_filt_f)
+            filt_f_aligned = align_2p_to_cues(successful_filt_f, cue_frame = cue_frame)
 
         # Get baseline data
         baseline_data = get_baseline_filt_f(successful_filt_f)
@@ -407,3 +407,90 @@ def process_2p_folder_mt(folder, n_trials, fps = 15, align = 'lick', success = '
 
 
     return all_avg_f_suc, all_avg_f_alt, all_baseline_data_suc, all_baseline_data_alt, all_aligned_f_suc, all_aligned_f_alt, all_successful_f_suc, all_successful_f_alt
+
+
+def process_2p_folder_k(folder, fps = 15, align = 'lick', success = 'success', cue_frame = 105, trial_type = '+'):
+    """
+    Process 2p data for a given folder.
+
+    Parameters:
+    - folder: str, path to the folder containing the data
+    - fps: int, frames per second
+    - align: str, alignment type ('lick' or 'cue')
+    - success: bool, whether to include only successful trials or only unsuccessful trials
+    
+    Returns:
+    - None
+    """
+
+    all_avg_f = []
+    all_baseline_data = []
+    all_aligned_f = []
+    all_successful_f = []
+
+    for path in [f for f in os.listdir(folder) if not f.startswith('.')]:
+        for path2 in [f for f in os.listdir(os.path.join(folder, path)) if not f.startswith('.')]:
+            if path2.endswith('.mat'):
+                matpath = os.path.join(folder, path, path2)
+                break
+        # matpath = os.path.join(folder, path, 'behaviordata.mat')
+        cyto_suite = os.path.join(folder, path)
+        beh = sio.loadmat(matpath)
+        # Load data
+        f, iscell, ops = load_s2p_data(cyto_suite)
+        filt_f = filter_cells(f, iscell)
+
+        filt_f_reshaped = reshape_data(filt_f)
+        filt_f_norm = normalize_data(filt_f_reshaped)
+
+        # Process behavior data
+        cues = np.squeeze(beh['cues']) / 1000.0
+        cues = cues[cues > 0]
+
+        csminus = np.squeeze(beh['cuesminus']) / 1000.0
+        cuepos, cueminus = [], []
+        for idx, t in enumerate(cues):
+            (cueminus if t in csminus else cuepos).append(idx)
+
+        bout_start, bout_end, bout_start_frames, bout_end_frames = behav.og_lickprocessing(matpath)
+
+        if success == 'success':
+            successful_trial_idx = [i for i, x in enumerate(bout_start) if (x > 0) & (x < 5000)]
+        elif success == 'unsuccess':
+            successful_trial_idx = [i for i, x in enumerate(bout_start) if not (x > 0) & (x < 5000)]
+        elif success == 'all':
+            successful_trial_idx = [i for i, _ in enumerate(bout_start)]
+        # successful_bout_start_frames = bout_start_frames[successful_trial_idx]
+
+        # Filter successful trials based on cues
+        if trial_type == '+':
+            suc_trials = [x for x in successful_trial_idx if x in cuepos]
+        if trial_type == '-':
+            suc_trials = [x for x in successful_trial_idx if x in cueminus]
+
+        successful_trial_idx = suc_trials
+        successful_bout_start_frames = bout_start_frames[successful_trial_idx]
+
+        # Combine lick data with imaging data
+        successful_filt_f = filt_f_norm[:, successful_trial_idx, :]
+        if align == 'lick':
+            filt_f_aligned = align_2p_to_licks(successful_filt_f, successful_bout_start_frames)
+        elif align == 'cue':
+            filt_f_aligned = align_2p_to_cues(successful_filt_f, cue_frame = cue_frame)
+
+        # Get baseline data
+        baseline_data = get_baseline_filt_f(successful_filt_f)
+
+        # Average across trials
+        avg_f = average_trials(filt_f_aligned)
+
+        # Store data 
+        all_avg_f.append(avg_f)
+        all_baseline_data.append(baseline_data)
+        all_aligned_f.append(filt_f_aligned)
+        all_successful_f.append(successful_filt_f)
+    
+    # Concatenate avg data (no trials axis )
+    all_avg_f = np.concatenate(all_avg_f, axis=0)
+
+    return all_avg_f, all_baseline_data, all_aligned_f, all_successful_f

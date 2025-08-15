@@ -98,6 +98,8 @@ def og_lickprocessing(matfile, fps = 15, return_more = False, bout_limit = 5000,
                 else:
                     last_lick = lick_diff_fromnonzero[len(lick_diff_fromnonzero)-1]
                 bout = licks_in_trial[first_nonzero_val:last_lick+1]
+            else:
+                bout = []
             #If there are more than 4 licks (i.e. enough for a 3 lick bout), and if the length of the bout is less than 2,
             #loop through all licks that could be part of a bout and try to find bouts that are greater than length 2 (i.e. 3 licks or longer)
             if len(licks_in_trial)>5:
@@ -662,3 +664,109 @@ def plot_avg_lick_histo(
 
     plt.tight_layout()
     return fig, ax_raster, ax_psth
+
+def plot_lick_raster_with_psth_multiple_axes(
+    mat_file: str,
+    align_to: str = 'reward',
+    pre_window: float = 5,
+    post_window: float = 10,
+    bin_size_psth: float = 0.1,
+    smooth_psth: bool = True,
+    psth_smoothing_sigma: float = 1.0,
+    fps: int = 15,
+    normalize_histo: bool = False,
+    lw: float = 1.0
+):
+    import numpy as np
+    import scipy.io as sio
+    import matplotlib.pyplot as plt
+    from scipy.ndimage import gaussian_filter1d
+
+    beh       = sio.loadmat(mat_file)
+    lick_ts   = np.squeeze(beh['licks'])   / 1000.0
+    cues      = np.squeeze(beh['cues'])    / 1000.0
+    cues      = cues[cues > 0]
+    rwd_ts    = np.squeeze(beh['fxdpumps'])/ 1000.0
+    alt_ts    = np.squeeze(beh['cuesminus']) / 1000.0
+
+    # Classify trials
+    alt_idx, suc_idx = [], []
+    for idx, t in enumerate(cues):
+        (alt_idx if t in alt_ts else suc_idx).append(idx)
+
+    # Choose alignment time
+    if align_to == 'cue':
+        event_ts = cues
+    elif align_to == 'reward':
+        event_ts = rwd_ts
+    else:
+        raise ValueError("align_to must be 'cue' or 'reward' for this version.")
+
+    # Align licks to event
+    aligned = []
+    for t0 in event_ts:
+        mask = (lick_ts >= t0 - pre_window) & (lick_ts <= t0 + post_window)
+        rel = lick_ts[mask] - t0
+        aligned.append(rel)
+
+    # Split aligned by tastant type
+    alt_al = [aligned[i] for i in alt_idx]
+    suc_al = [aligned[i] for i in suc_idx]
+
+    # Set up 3 axes
+    fig, axs = plt.subplots(3, 1, figsize=(12, 10), sharex=True,
+                            gridspec_kw={'height_ratios':[2, 2, 1]})
+    ax1_raster, ax2_raster, ax_psth = axs
+
+    # Raster for sucrose
+    for row, times in enumerate(suc_al, start=1):
+        ax1_raster.vlines(times, row-0.4, row+0.4, color='blue', lw=lw)
+    ax1_raster.axvline(0, linestyle='--', color='blue', lw=lw)
+    ax1_raster.set_ylabel('CS+\nTrial #')
+    ax1_raster.set_ylim(0.5, len(suc_al) + 0.5)
+    ax1_raster.invert_yaxis()
+
+    # Raster for alt tastant
+    for row, times in enumerate(alt_al, start=1):
+        ax2_raster.vlines(times, row-0.4, row+0.4, color='green', lw=lw)
+    ax2_raster.axvline(0, linestyle='--', color='green', lw=lw)
+    ax2_raster.set_ylabel('CS-\nTrial #')
+    ax2_raster.set_ylim(0.5, len(alt_al) + 0.5)
+    ax2_raster.invert_yaxis()
+
+    # PSTH
+    bins = np.arange(-pre_window, post_window + bin_size_psth, bin_size_psth)
+    all_suc = np.hstack(suc_al) if suc_al else np.array([])
+    all_alt = np.hstack(alt_al) if alt_al else np.array([])
+
+    cnt_suc, _ = np.histogram(all_suc, bins=bins)
+    cnt_alt, _ = np.histogram(all_alt, bins=bins)
+
+    if normalize_histo:
+        cnt_suc = cnt_suc.astype(float) / max(cnt_suc.max(), 1)
+        cnt_alt = cnt_alt.astype(float) / max(cnt_alt.max(), 1)
+    else:
+        cnt_suc = cnt_suc / (len(suc_al) * bin_size_psth) if suc_al else cnt_suc
+        cnt_alt = cnt_alt / (len(alt_al) * bin_size_psth) if alt_al else cnt_alt
+
+    if smooth_psth:
+        cnt_suc = gaussian_filter1d(cnt_suc, sigma=psth_smoothing_sigma)
+        cnt_alt = gaussian_filter1d(cnt_alt, sigma=psth_smoothing_sigma)
+
+    ax_psth.bar(bins[:-1], cnt_suc, width=bin_size_psth, align='edge', color='blue', alpha=0.3, label='CS+')
+    ax_psth.bar(bins[:-1], cnt_alt, width=bin_size_psth, align='edge', color='green', alpha=0.3, label='CS-')
+    ax_psth.legend()
+    ax_psth.set_ylabel('Licks/sec')
+    ax_psth.set_xlabel('Time (s)')
+
+    # Finalize
+    ax2_raster.spines['top'].set_visible(False)
+    ax2_raster.spines['right'].set_visible(False)
+    ax1_raster.spines['top'].set_visible(False)
+    ax1_raster.spines['right'].set_visible(False)
+    ax_psth.spines['top'].set_visible(False)
+    ax_psth.spines['right'].set_visible(False)
+    ax_psth.set_xlim(-pre_window, post_window)
+
+    plt.tight_layout()
+    return fig, ax1_raster, ax2_raster, ax_psth
